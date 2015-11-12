@@ -57,8 +57,8 @@ import java.util.concurrent.TimeUnit;
  * Digital watch face with seconds. In ambient mode, the seconds aren't displayed. On devices with
  * low-bit ambient mode, the text is drawn without anti-aliasing in ambient mode.
  */
-public class SunshineWatchFace extends CanvasWatchFaceService {
-    private static final String TAG = "SunshineWatchFace";
+public class SunshineWatchFaceService extends CanvasWatchFaceService {
+    private static final String TAG = "WatchFaceService";
 
     private static final Typeface BOLD_TYPEFACE =
             Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD);
@@ -117,7 +117,7 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
             }
         };
 
-        GoogleApiClient mGoogleApiClient = new GoogleApiClient.Builder(SunshineWatchFace.this)
+        GoogleApiClient mGoogleApiClient = new GoogleApiClient.Builder(SunshineWatchFaceService.this)
                 .addConnectionCallbacks(this)
                 .addOnConnectionFailedListener(this)
                 .addApi(Wearable.API)
@@ -145,7 +145,6 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
         Paint mDatePaint;
         Paint mHourPaint;
         Paint mMinutePaint;
-        Paint mSecondPaint;
         Paint mAmPmPaint;
         Paint mColonPaint;
         float mColonWidth;
@@ -168,8 +167,6 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
                 DigitalWatchFaceUtil.COLOR_VALUE_DEFAULT_AND_AMBIENT_HOUR_DIGITS;
         int mInteractiveMinuteDigitsColor =
                 DigitalWatchFaceUtil.COLOR_VALUE_DEFAULT_AND_AMBIENT_MINUTE_DIGITS;
-        int mInteractiveSecondDigitsColor =
-                DigitalWatchFaceUtil.COLOR_VALUE_DEFAULT_AND_AMBIENT_SECOND_DIGITS;
 
         /**
          * Whether the display supports fewer bits for each color in ambient mode. When true, we
@@ -184,12 +181,12 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
             }
             super.onCreate(holder);
 
-            setWatchFaceStyle(new WatchFaceStyle.Builder(SunshineWatchFace.this)
+            setWatchFaceStyle(new WatchFaceStyle.Builder(SunshineWatchFaceService.this)
                     .setCardPeekMode(WatchFaceStyle.PEEK_MODE_VARIABLE)
                     .setBackgroundVisibility(WatchFaceStyle.BACKGROUND_VISIBILITY_INTERRUPTIVE)
                     .setShowSystemUiTime(false)
                     .build());
-            Resources resources = SunshineWatchFace.this.getResources();
+            Resources resources = SunshineWatchFaceService.this.getResources();
             mYOffset = resources.getDimension(R.dimen.digital_y_offset);
             mLineHeight = resources.getDimension(R.dimen.digital_line_height);
             mAmString = resources.getString(R.string.digital_am);
@@ -200,7 +197,6 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
             mDatePaint = createTextPaint(resources.getColor(R.color.digital_date));
             mHourPaint = createTextPaint(mInteractiveHourDigitsColor, BOLD_TYPEFACE);
             mMinutePaint = createTextPaint(mInteractiveMinuteDigitsColor);
-            mSecondPaint = createTextPaint(mInteractiveSecondDigitsColor);
             mAmPmPaint = createTextPaint(resources.getColor(R.color.digital_am_pm));
             mColonPaint = createTextPaint(resources.getColor(R.color.digital_colons));
 
@@ -259,7 +255,7 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
         private void initFormats() {
             mDayOfWeekFormat = new SimpleDateFormat("EEEE", Locale.getDefault());
             mDayOfWeekFormat.setCalendar(mCalendar);
-            mDateFormat = DateFormat.getDateFormat(SunshineWatchFace.this);
+            mDateFormat = DateFormat.getDateFormat(SunshineWatchFaceService.this);
             mDateFormat.setCalendar(mCalendar);
         }
 
@@ -270,7 +266,7 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
             mRegisteredReceiver = true;
             IntentFilter filter = new IntentFilter(Intent.ACTION_TIMEZONE_CHANGED);
             filter.addAction(Intent.ACTION_LOCALE_CHANGED);
-            SunshineWatchFace.this.registerReceiver(mReceiver, filter);
+            SunshineWatchFaceService.this.registerReceiver(mReceiver, filter);
         }
 
         private void unregisterReceiver() {
@@ -278,7 +274,7 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
                 return;
             }
             mRegisteredReceiver = false;
-            SunshineWatchFace.this.unregisterReceiver(mReceiver);
+            SunshineWatchFaceService.this.unregisterReceiver(mReceiver);
         }
 
         @Override
@@ -289,7 +285,7 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
             super.onApplyWindowInsets(insets);
 
             // Load resources that have alternate values for round watches.
-            Resources resources = SunshineWatchFace.this.getResources();
+            Resources resources = SunshineWatchFaceService.this.getResources();
             boolean isRound = insets.isRound();
             mXOffset = resources.getDimension(isRound
                     ? R.dimen.digital_x_offset_round : R.dimen.digital_x_offset);
@@ -301,7 +297,6 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
             mDatePaint.setTextSize(resources.getDimension(R.dimen.digital_date_text_size));
             mHourPaint.setTextSize(textSize);
             mMinutePaint.setTextSize(textSize);
-            mSecondPaint.setTextSize(textSize);
             mAmPmPaint.setTextSize(amPmSize);
             mColonPaint.setTextSize(textSize);
 
@@ -344,17 +339,12 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
                     DigitalWatchFaceUtil.COLOR_VALUE_DEFAULT_AND_AMBIENT_HOUR_DIGITS);
             adjustPaintColorToCurrentMode(mMinutePaint, mInteractiveMinuteDigitsColor,
                     DigitalWatchFaceUtil.COLOR_VALUE_DEFAULT_AND_AMBIENT_MINUTE_DIGITS);
-            // Actually, the seconds are not rendered in the ambient mode, so we could pass just any
-            // value as ambientColor here.
-            adjustPaintColorToCurrentMode(mSecondPaint, mInteractiveSecondDigitsColor,
-                    DigitalWatchFaceUtil.COLOR_VALUE_DEFAULT_AND_AMBIENT_SECOND_DIGITS);
 
             if (mLowBitAmbient) {
                 boolean antiAlias = !inAmbientMode;
                 mDatePaint.setAntiAlias(antiAlias);
                 mHourPaint.setAntiAlias(antiAlias);
                 mMinutePaint.setAntiAlias(antiAlias);
-                mSecondPaint.setAntiAlias(antiAlias);
                 mAmPmPaint.setAntiAlias(antiAlias);
                 mColonPaint.setAntiAlias(antiAlias);
             }
@@ -426,11 +416,6 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
             updatePaintIfInteractive(mMinutePaint, color);
         }
 
-        private void setInteractiveSecondDigitsColor(int color) {
-            mInteractiveSecondDigitsColor = color;
-            updatePaintIfInteractive(mSecondPaint, color);
-        }
-
         private String formatTwoDigitNumber(int hour) {
             return String.format("%02d", hour);
         }
@@ -444,11 +429,11 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
             long now = System.currentTimeMillis();
             mCalendar.setTimeInMillis(now);
             mDate.setTime(now);
-            boolean is24Hour = DateFormat.is24HourFormat(SunshineWatchFace.this);
+            boolean is24Hour = DateFormat.is24HourFormat(SunshineWatchFaceService.this);
 
             // Show colons for the first half of each second so the colons blink on when the time
             // updates.
-            mShouldDrawColons = (System.currentTimeMillis() % 1000) < 500;
+            mShouldDrawColons = true;
 
             // Draw the background.
             canvas.drawRect(0, 0, bounds.width(), bounds.height(), mBackgroundPaint);
@@ -480,32 +465,13 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
             canvas.drawText(minuteString, x, mYOffset, mMinutePaint);
             x += mMinutePaint.measureText(minuteString);
 
-            // In unmuted interactive mode, draw a second blinking colon followed by the seconds.
-            // Otherwise, if we're in 12-hour mode, draw AM/PM
-            if (!isInAmbientMode() && !mMute) {
-                if (mShouldDrawColons) {
-                    canvas.drawText(COLON_STRING, x, mYOffset, mColonPaint);
-                }
-                x += mColonWidth;
-                canvas.drawText(formatTwoDigitNumber(
-                        mCalendar.get(Calendar.SECOND)), x, mYOffset, mSecondPaint);
-            } else if (!is24Hour) {
-                x += mColonWidth;
-                canvas.drawText(getAmPmString(
-                        mCalendar.get(Calendar.AM_PM)), x, mYOffset, mAmPmPaint);
-            }
-
             // Only render the day of week and date if there is no peek card, so they do not bleed
             // into each other in ambient mode.
             if (getPeekCardPosition().isEmpty()) {
                 // Day of week
                 canvas.drawText(
-                        mDayOfWeekFormat.format(mDate),
+                        mDayOfWeekFormat.format(mDate) + ", " + mDateFormat.format(mDate),
                         mXOffset, mYOffset + mLineHeight, mDatePaint);
-                // Date
-                canvas.drawText(
-                        mDateFormat.format(mDate),
-                        mXOffset, mYOffset + mLineHeight * 2, mDatePaint);
             }
         }
 
@@ -554,8 +520,6 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
                     DigitalWatchFaceUtil.COLOR_VALUE_DEFAULT_AND_AMBIENT_HOUR_DIGITS);
             addIntKeyIfMissing(config, DigitalWatchFaceUtil.KEY_MINUTES_COLOR,
                     DigitalWatchFaceUtil.COLOR_VALUE_DEFAULT_AND_AMBIENT_MINUTE_DIGITS);
-            addIntKeyIfMissing(config, DigitalWatchFaceUtil.KEY_SECONDS_COLOR,
-                    DigitalWatchFaceUtil.COLOR_VALUE_DEFAULT_AND_AMBIENT_SECOND_DIGITS);
         }
 
         private void addIntKeyIfMissing(DataMap config, String key, int color) {
@@ -619,8 +583,6 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
                 setInteractiveHourDigitsColor(color);
             } else if (configKey.equals(DigitalWatchFaceUtil.KEY_MINUTES_COLOR)) {
                 setInteractiveMinuteDigitsColor(color);
-            } else if (configKey.equals(DigitalWatchFaceUtil.KEY_SECONDS_COLOR)) {
-                setInteractiveSecondDigitsColor(color);
             } else {
                 Log.w(TAG, "Ignoring unknown config key: " + configKey);
                 return false;

@@ -34,38 +34,38 @@ public final class DigitalWatchFaceUtil {
     private static final String TAG = "DigitalWatchFaceUtil";
 
     /**
-     * The {@link DataMap} key for {@link SunshineWatchFace} background color name.
+     * The {@link DataMap} key for {@link SunshineWatchFaceService} background color name.
      * The color name must be a {@link String} recognized by {@link Color#parseColor}.
      */
     public static final String KEY_BACKGROUND_COLOR = "BACKGROUND_COLOR";
 
     /**
-     * The {@link DataMap} key for {@link SunshineWatchFace} hour digits color name.
+     * The {@link DataMap} key for {@link SunshineWatchFaceService} hour digits color name.
      * The color name must be a {@link String} recognized by {@link Color#parseColor}.
      */
     public static final String KEY_HOURS_COLOR = "HOURS_COLOR";
 
     /**
-     * The {@link DataMap} key for {@link SunshineWatchFace} minute digits color name.
+     * The {@link DataMap} key for {@link SunshineWatchFaceService} minute digits color name.
      * The color name must be a {@link String} recognized by {@link Color#parseColor}.
      */
     public static final String KEY_MINUTES_COLOR = "MINUTES_COLOR";
 
     /**
-     * The {@link DataMap} key for {@link SunshineWatchFace} second digits color name.
+     * The {@link DataMap} key for {@link SunshineWatchFaceService} second digits color name.
      * The color name must be a {@link String} recognized by {@link Color#parseColor}.
      */
     public static final String KEY_SECONDS_COLOR = "SECONDS_COLOR";
 
     /**
-     * The path for the {@link DataItem} containing {@link SunshineWatchFace} configuration.
+     * The path for the {@link DataItem} containing {@link SunshineWatchFaceService} configuration.
      */
     public static final String PATH_WITH_FEATURE = "/watch_face_config/Digital";
 
     /**
      * Name of the default interactive mode background color and the ambient mode background color.
      */
-    public static final String COLOR_NAME_DEFAULT_AND_AMBIENT_BACKGROUND = "Black";
+    public static final String COLOR_NAME_DEFAULT_AND_AMBIENT_BACKGROUND = "#1CA8F4";
     public static final int COLOR_VALUE_DEFAULT_AND_AMBIENT_BACKGROUND =
             parseColor(COLOR_NAME_DEFAULT_AND_AMBIENT_BACKGROUND);
 
@@ -85,22 +85,15 @@ public final class DigitalWatchFaceUtil {
     public static final int COLOR_VALUE_DEFAULT_AND_AMBIENT_MINUTE_DIGITS =
             parseColor(COLOR_NAME_DEFAULT_AND_AMBIENT_MINUTE_DIGITS);
 
-    /**
-     * Name of the default interactive mode second digits color and the ambient mode second digits
-     * color.
-     */
-    public static final String COLOR_NAME_DEFAULT_AND_AMBIENT_SECOND_DIGITS = "Gray";
-    public static final int COLOR_VALUE_DEFAULT_AND_AMBIENT_SECOND_DIGITS =
-            parseColor(COLOR_NAME_DEFAULT_AND_AMBIENT_SECOND_DIGITS);
 
     /**
      * Callback interface to perform an action with the current config {@link DataMap} for
-     * {@link SunshineWatchFace}.
+     * {@link SunshineWatchFaceService}.
      */
     public interface FetchConfigDataMapCallback {
         /**
          * Callback invoked with the current config {@link DataMap} for
-         * {@link SunshineWatchFace}.
+         * {@link SunshineWatchFaceService}.
          */
         void onConfigDataMapFetched(DataMap config);
     }
@@ -109,8 +102,35 @@ public final class DigitalWatchFaceUtil {
         return Color.parseColor(colorName.toLowerCase());
     }
 
+
     /**
-     * Asynchronously fetches the current config {@link DataMap} for {@link SunshineWatchFace}
+     * Converts a condition ID from OpenWeatherMap to a drawable icon
+     */
+    public static int getWeatherIconByWeatherCondition(int conditionId) {
+        if (conditionId >= 200 && conditionId <= 232) {		// Thunderstorm
+            return R.mipmap.ic_storm;
+        } else if (conditionId >= 300 && conditionId <= 321) {	// Drizzle
+            return R.mipmap.ic_light_rain;
+        } else if (conditionId >= 500 && conditionId <= 531) {	// Rain
+            return R.mipmap.ic_rain;
+        } else if (conditionId >= 600 && conditionId <= 622) {	// Snow
+            return R.mipmap.ic_snow;
+        } else if (conditionId >= 701 && conditionId <= 761) {	// Atmosphere
+            return R.mipmap.ic_fog;
+        } else if (conditionId == 761 || conditionId == 781) {	// Dust + worse
+            return R.mipmap.ic_storm;
+        } else if (conditionId == 800) {				// Sky is clear
+            return R.mipmap.ic_clear;
+        } else if (conditionId == 801) {				// Few clouds
+            return R.mipmap.ic_light_clouds;
+        } else if (conditionId >= 802 && conditionId <= 804) {	// Scattered - Overcast Clouds
+            return R.mipmap.ic_cloudy;
+        }
+        return -1;
+    }
+
+    /**
+     * Asynchronously fetches the current config {@link DataMap} for {@link SunshineWatchFaceService}
      * and passes it to the given callback.
      * <p>
      * If the current config {@link DataItem} doesn't exist, it isn't created and the callback
