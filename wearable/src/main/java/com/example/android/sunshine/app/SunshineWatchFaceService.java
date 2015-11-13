@@ -72,7 +72,7 @@ public class SunshineWatchFaceService extends CanvasWatchFaceService {
      * Update rate in milliseconds for normal (not ambient and not mute) mode. We update twice
      * a second to blink the colons.
      */
-    private static final long NORMAL_UPDATE_RATE_MS =  TimeUnit.MINUTES.toMillis(1);
+    private static final long NORMAL_UPDATE_RATE_MS =  1000;
 
     /**
      * Update rate in milliseconds for mute mode. We update every minute, like in ambient mode.
