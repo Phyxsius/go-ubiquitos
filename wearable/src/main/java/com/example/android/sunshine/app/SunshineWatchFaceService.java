@@ -21,6 +21,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.res.Resources;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Rect;
@@ -33,6 +35,7 @@ import android.support.wearable.watchface.WatchFaceService;
 import android.support.wearable.watchface.WatchFaceStyle;
 import android.text.format.DateFormat;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.SurfaceHolder;
 import android.view.WindowInsets;
 
@@ -69,7 +72,7 @@ public class SunshineWatchFaceService extends CanvasWatchFaceService {
      * Update rate in milliseconds for normal (not ambient and not mute) mode. We update twice
      * a second to blink the colons.
      */
-    private static final long NORMAL_UPDATE_RATE_MS = 500;
+    private static final long NORMAL_UPDATE_RATE_MS =  TimeUnit.MINUTES.toMillis(1);
 
     /**
      * Update rate in milliseconds for mute mode. We update every minute, like in ambient mode.
@@ -158,6 +161,8 @@ public class SunshineWatchFaceService extends CanvasWatchFaceService {
         boolean mShouldDrawColons;
         float mXOffset;
         float mYOffset;
+        float mXDividerOffset;
+        float mYDividerOffset;
         float mLineHeight;
         String mAmString;
         String mPmString;
@@ -185,9 +190,12 @@ public class SunshineWatchFaceService extends CanvasWatchFaceService {
                     .setCardPeekMode(WatchFaceStyle.PEEK_MODE_VARIABLE)
                     .setBackgroundVisibility(WatchFaceStyle.BACKGROUND_VISIBILITY_INTERRUPTIVE)
                     .setShowSystemUiTime(false)
+                    .setStatusBarGravity(Gravity.TOP | Gravity.CENTER)
                     .build());
             Resources resources = SunshineWatchFaceService.this.getResources();
             mYOffset = resources.getDimension(R.dimen.digital_y_offset);
+            mXDividerOffset = resources.getDimension(R.dimen.digital_divider_length) / 2;
+            mYDividerOffset = resources.getDimension(R.dimen.digital_y_divider_offset);
             mLineHeight = resources.getDimension(R.dimen.digital_line_height);
             mAmString = resources.getString(R.string.digital_am);
             mPmString = resources.getString(R.string.digital_pm);
@@ -198,7 +206,7 @@ public class SunshineWatchFaceService extends CanvasWatchFaceService {
             mHourPaint = createTextPaint(mInteractiveHourDigitsColor, BOLD_TYPEFACE);
             mMinutePaint = createTextPaint(mInteractiveMinuteDigitsColor);
             mAmPmPaint = createTextPaint(resources.getColor(R.color.digital_am_pm));
-            mColonPaint = createTextPaint(resources.getColor(R.color.digital_colons));
+            mColonPaint = createTextPaint(mInteractiveHourDigitsColor, BOLD_TYPEFACE);
 
             mCalendar = Calendar.getInstance();
             mDate = new Date();
@@ -253,9 +261,9 @@ public class SunshineWatchFaceService extends CanvasWatchFaceService {
         }
 
         private void initFormats() {
-            mDayOfWeekFormat = new SimpleDateFormat("EEEE", Locale.getDefault());
+            mDayOfWeekFormat = new SimpleDateFormat("EEE", Locale.getDefault());
             mDayOfWeekFormat.setCalendar(mCalendar);
-            mDateFormat = DateFormat.getDateFormat(SunshineWatchFaceService.this);
+            mDateFormat = new SimpleDateFormat("MMM dd yyyy", Locale.getDefault());
             mDateFormat.setCalendar(mCalendar);
         }
 
@@ -439,7 +447,6 @@ public class SunshineWatchFaceService extends CanvasWatchFaceService {
             canvas.drawRect(0, 0, bounds.width(), bounds.height(), mBackgroundPaint);
 
             // Draw the hours.
-            float x = mXOffset;
             String hourString;
             if (is24Hour) {
                 hourString = formatTwoDigitNumber(mCalendar.get(Calendar.HOUR_OF_DAY));
@@ -450,6 +457,13 @@ public class SunshineWatchFaceService extends CanvasWatchFaceService {
                 }
                 hourString = String.valueOf(hour);
             }
+            String minuteString = formatTwoDigitNumber(mCalendar.get(Calendar.MINUTE));
+
+            // Center the hours by taking the center of the bounds - full width / 2 (center of string)
+            float x = bounds.centerX() - ((mHourPaint.measureText(hourString) +
+                    mColonWidth +
+                    mMinutePaint.measureText(minuteString)) / 2);
+
             canvas.drawText(hourString, x, mYOffset, mHourPaint);
             x += mHourPaint.measureText(hourString);
 
@@ -461,17 +475,36 @@ public class SunshineWatchFaceService extends CanvasWatchFaceService {
             x += mColonWidth;
 
             // Draw the minutes.
-            String minuteString = formatTwoDigitNumber(mCalendar.get(Calendar.MINUTE));
             canvas.drawText(minuteString, x, mYOffset, mMinutePaint);
             x += mMinutePaint.measureText(minuteString);
 
             // Only render the day of week and date if there is no peek card, so they do not bleed
             // into each other in ambient mode.
             if (getPeekCardPosition().isEmpty()) {
-                // Day of week
-                canvas.drawText(
-                        mDayOfWeekFormat.format(mDate) + ", " + mDateFormat.format(mDate),
-                        mXOffset, mYOffset + mLineHeight, mDatePaint);
+                String dayOfWeekString = (mDayOfWeekFormat.format(mDate) + ", " +
+                        mDateFormat.format(mDate)).toUpperCase();
+                // Date
+                float dateXOffset = bounds.centerX() - (mDatePaint.measureText(dayOfWeekString) / 2);
+                canvas.drawText(dayOfWeekString,
+                        dateXOffset,
+                        mYOffset + mLineHeight,
+                        mDatePaint);
+
+                // Divider line
+                canvas.drawLine(bounds.centerX() - mXDividerOffset,
+                        bounds.centerY() + mYDividerOffset,
+                        bounds.centerX() + mXDividerOffset,
+                        bounds.centerY() + mYDividerOffset,
+                        mDatePaint);
+
+                // Weather icon and temperatures
+                Bitmap icon = BitmapFactory.decodeResource(SunshineWatchFaceService.this.getResources(),
+                        DigitalWatchFaceUtil.getWeatherIconByWeatherCondition(800));
+
+                canvas.drawBitmap(icon,
+                        dateXOffset,
+                        bounds.centerY() + (mYDividerOffset * 2),
+                        new Paint());
             }
         }
 
