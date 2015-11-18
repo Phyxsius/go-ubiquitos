@@ -27,9 +27,11 @@ import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.graphics.Typeface;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.support.v4.content.LocalBroadcastManager;
 import android.support.wearable.watchface.CanvasWatchFaceService;
 import android.support.wearable.watchface.WatchFaceService;
 import android.support.wearable.watchface.WatchFaceStyle;
@@ -99,6 +101,18 @@ public class SunshineWatchFaceService extends CanvasWatchFaceService {
         /** How often {@link #mUpdateTimeHandler} ticks in milliseconds. */
         long mInteractiveUpdateRateMs = NORMAL_UPDATE_RATE_MS;
 
+		// TODO: Replace
+        int resoureId;
+        String maxTemp,minTemp;
+        private AsyncTask<Void, Void, Bundle> mLoadMeetingsTask;
+
+        protected int mRequireInterval;
+        protected int minTemperature = Integer.MAX_VALUE,maxTemperature = Integer.MAX_VALUE;
+        protected int mTemperatureScale;
+        protected long mWeatherInfoReceivedTime;
+        protected long mWeatherInfoRequiredTime;
+		// **********
+
         /** Handler to update the time periodically in interactive mode. */
         final Handler mUpdateTimeHandler = new Handler() {
             @Override
@@ -138,11 +152,29 @@ public class SunshineWatchFaceService extends CanvasWatchFaceService {
             }
         };
 
+		// TODO: Replace
+        BroadcastReceiver messageReceiver= new  BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+              Bundle dataMap=intent.getExtras();
+
+                String maxTemp = dataMap.getString("maxTemp");
+                String minTemp = dataMap.getString("minTemp");
+                String value=dataMap.getString("weatherId");
+                if(null!=value){
+                    int resourceId = Integer.parseInt(dataMap.getString("weatherId"));
+//                    onWeatherUpdateLoaded(maxTemp,minTemp , resourceId);
+                }
+
+            }
+        };
+
         /**
          * Unregistering an unregistered receiver throws an exception. Keep track of the
          * registration state to prevent that.
          */
-        boolean mRegisteredReceiver = false;
+        boolean mRegisteredReceiver = false,
+				mDataReceiver = false;
 
         Paint mBackgroundPaint;
         Paint mDatePaint;
@@ -191,6 +223,7 @@ public class SunshineWatchFaceService extends CanvasWatchFaceService {
                     .setBackgroundVisibility(WatchFaceStyle.BACKGROUND_VISIBILITY_INTERRUPTIVE)
                     .setShowSystemUiTime(false)
                     .setStatusBarGravity(Gravity.TOP | Gravity.CENTER)
+                    .setHotwordIndicatorGravity(Gravity.BOTTOM | Gravity.CENTER)
                     .build());
             Resources resources = SunshineWatchFaceService.this.getResources();
             mYOffset = resources.getDimension(R.dimen.digital_y_offset);
@@ -275,6 +308,13 @@ public class SunshineWatchFaceService extends CanvasWatchFaceService {
             IntentFilter filter = new IntentFilter(Intent.ACTION_TIMEZONE_CHANGED);
             filter.addAction(Intent.ACTION_LOCALE_CHANGED);
             SunshineWatchFaceService.this.registerReceiver(mReceiver, filter);
+            // Register the local broadcast receiver
+            if(mDataReceiver){
+                return;
+            }
+            mDataReceiver=true;
+            IntentFilter messageFilter = new IntentFilter(Intent.ACTION_SEND);
+            LocalBroadcastManager.getInstance(SunshineWatchFaceService.this).registerReceiver(messageReceiver, messageFilter);
         }
 
         private void unregisterReceiver() {
@@ -505,6 +545,11 @@ public class SunshineWatchFaceService extends CanvasWatchFaceService {
                         dateXOffset,
                         bounds.centerY() + (mYDividerOffset * 2),
                         new Paint());
+
+                canvas.drawText(maxTemp + " " + minTemp,
+                        dateXOffset + icon.getWidth() + 10,
+                        bounds.centerY() + (mYDividerOffset * 4),
+                        mDatePaint);
             }
         }
 

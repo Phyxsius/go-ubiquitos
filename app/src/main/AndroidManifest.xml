@@ -168,13 +168,7 @@
             android:exported="false"
             android:permission="android.permission.BIND_REMOTEVIEWS" />
 
-        <!--<service android:name=".wearable.WeatherWearSource">-->
-            <!--<intent-filter>-->
-                <!--<action android:name="com.google.android.gms.wearable.BIND_LISTENER" />-->
-            <!--</intent-filter>-->
-        <!--</service>-->
-
-        <service android:name=".wearable.WeatherWearSource"></service>
+        <service android:name=".wearable.WeatherWearService"></service>
     </application>
 
 </manifest>
