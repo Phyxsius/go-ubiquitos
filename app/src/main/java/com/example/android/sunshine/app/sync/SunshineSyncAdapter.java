@@ -36,7 +36,7 @@ import com.example.android.sunshine.app.R;
 import com.example.android.sunshine.app.Utility;
 import com.example.android.sunshine.app.data.WeatherContract;
 import com.example.android.sunshine.app.muzei.WeatherMuzeiSource;
-import com.example.android.sunshine.app.wearable.WeatherWearSource;
+import com.example.android.sunshine.app.wearable.WeatherWearService;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -381,7 +381,7 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter {
     private void updateWear() {
         Context context = getContext();
         context.startService(new Intent(ACTION_DATA_UPDATED)
-                .setClass(context, WeatherWearSource.class));
+                .setClass(context, WeatherWearService.class));
     }
 
     private void notifyWeather() {
