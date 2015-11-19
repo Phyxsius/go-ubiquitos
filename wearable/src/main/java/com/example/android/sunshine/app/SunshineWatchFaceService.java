@@ -27,7 +27,6 @@ import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.graphics.Typeface;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -102,15 +101,11 @@ public class SunshineWatchFaceService extends CanvasWatchFaceService {
         long mInteractiveUpdateRateMs = NORMAL_UPDATE_RATE_MS;
 
 		// TODO: Replace
-        int resoureId;
-        String maxTemp,minTemp;
-        private AsyncTask<Void, Void, Bundle> mLoadMeetingsTask;
+        int resourceId;
+        String minTemp, maxTemp;
 
-        protected int mRequireInterval;
-        protected int minTemperature = Integer.MAX_VALUE,maxTemperature = Integer.MAX_VALUE;
-        protected int mTemperatureScale;
-        protected long mWeatherInfoReceivedTime;
-        protected long mWeatherInfoRequiredTime;
+        protected int minTemperature = Integer.MAX_VALUE,
+                maxTemperature = Integer.MAX_VALUE;
 		// **********
 
         /** Handler to update the time periodically in interactive mode. */
@@ -153,21 +148,30 @@ public class SunshineWatchFaceService extends CanvasWatchFaceService {
         };
 
 		// TODO: Replace
-        BroadcastReceiver messageReceiver= new  BroadcastReceiver() {
+        BroadcastReceiver messageReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
-              Bundle dataMap=intent.getExtras();
+                Bundle dataMap = intent.getExtras();
 
-                String maxTemp = dataMap.getString("maxTemp");
                 String minTemp = dataMap.getString("minTemp");
-                String value=dataMap.getString("weatherId");
-                if(null!=value){
-                    int resourceId = Integer.parseInt(dataMap.getString("weatherId"));
-//                    onWeatherUpdateLoaded(maxTemp,minTemp , resourceId);
-                }
+                String maxTemp = dataMap.getString("maxTemp");
+                String weatherId = dataMap.getString("weatherId");
 
+                if (weatherId != null) {
+                    int resourceId = Integer.parseInt(weatherId);
+
+                    weatherDataUpdated(maxTemp, minTemp, resourceId);
+                }
             }
         };
+
+        private void weatherDataUpdated(String maxTemp, String minTemp, int resourceId) {
+            this.maxTemp = maxTemp;
+            this.minTemp = minTemp;
+            this.resourceId = resourceId;
+
+            invalidate();
+        }
 
         /**
          * Unregistering an unregistered receiver throws an exception. Keep track of the
@@ -182,6 +186,8 @@ public class SunshineWatchFaceService extends CanvasWatchFaceService {
         Paint mMinutePaint;
         Paint mAmPmPaint;
         Paint mColonPaint;
+        Paint mMaxTempPaint;
+        Paint mMinTempPaint;
         float mColonWidth;
         boolean mMute;
 
@@ -240,6 +246,8 @@ public class SunshineWatchFaceService extends CanvasWatchFaceService {
             mMinutePaint = createTextPaint(mInteractiveMinuteDigitsColor);
             mAmPmPaint = createTextPaint(resources.getColor(R.color.digital_am_pm));
             mColonPaint = createTextPaint(mInteractiveHourDigitsColor, BOLD_TYPEFACE);
+            mMinTempPaint = createTextPaint(mInteractiveMinuteDigitsColor);
+            mMaxTempPaint = createTextPaint(mInteractiveHourDigitsColor, BOLD_TYPEFACE);
 
             mCalendar = Calendar.getInstance();
             mDate = new Date();
@@ -337,16 +345,22 @@ public class SunshineWatchFaceService extends CanvasWatchFaceService {
             boolean isRound = insets.isRound();
             mXOffset = resources.getDimension(isRound
                     ? R.dimen.digital_x_offset_round : R.dimen.digital_x_offset);
+            mYOffset = resources.getDimension(isRound
+                    ? R.dimen.digital_y_offset_round : R.dimen.digital_y_offset);
             float textSize = resources.getDimension(isRound
                     ? R.dimen.digital_text_size_round : R.dimen.digital_text_size);
             float amPmSize = resources.getDimension(isRound
                     ? R.dimen.digital_am_pm_size_round : R.dimen.digital_am_pm_size);
+            float tempSize = resources.getDimension(isRound
+                    ? R.dimen.digital_temp_size_round : R.dimen.digital_temp_size);
 
             mDatePaint.setTextSize(resources.getDimension(R.dimen.digital_date_text_size));
             mHourPaint.setTextSize(textSize);
             mMinutePaint.setTextSize(textSize);
             mAmPmPaint.setTextSize(amPmSize);
             mColonPaint.setTextSize(textSize);
+            mMinTempPaint.setTextSize(tempSize);
+            mMaxTempPaint.setTextSize(tempSize);
 
             mColonWidth = mColonPaint.measureText(COLON_STRING);
         }
@@ -518,18 +532,18 @@ public class SunshineWatchFaceService extends CanvasWatchFaceService {
             canvas.drawText(minuteString, x, mYOffset, mMinutePaint);
             x += mMinutePaint.measureText(minuteString);
 
+            String dayOfWeekString = (mDayOfWeekFormat.format(mDate) + ", " +
+                    mDateFormat.format(mDate)).toUpperCase();
+            // Date
+            float dateXOffset = bounds.centerX() - (mDatePaint.measureText(dayOfWeekString) / 2);
+            canvas.drawText(dayOfWeekString,
+                    dateXOffset,
+                    mYOffset + mLineHeight,
+                    mDatePaint);
+
             // Only render the day of week and date if there is no peek card, so they do not bleed
             // into each other in ambient mode.
             if (getPeekCardPosition().isEmpty()) {
-                String dayOfWeekString = (mDayOfWeekFormat.format(mDate) + ", " +
-                        mDateFormat.format(mDate)).toUpperCase();
-                // Date
-                float dateXOffset = bounds.centerX() - (mDatePaint.measureText(dayOfWeekString) / 2);
-                canvas.drawText(dayOfWeekString,
-                        dateXOffset,
-                        mYOffset + mLineHeight,
-                        mDatePaint);
-
                 // Divider line
                 canvas.drawLine(bounds.centerX() - mXDividerOffset,
                         bounds.centerY() + mYDividerOffset,
@@ -537,19 +551,35 @@ public class SunshineWatchFaceService extends CanvasWatchFaceService {
                         bounds.centerY() + mYDividerOffset,
                         mDatePaint);
 
-                // Weather icon and temperatures
-                Bitmap icon = BitmapFactory.decodeResource(SunshineWatchFaceService.this.getResources(),
-                        DigitalWatchFaceUtil.getWeatherIconByWeatherCondition(800));
+                if (resourceId == 0) {
+                    resourceId = 600;
+                    minTemp = "10*";
+                    maxTemp = "99*";
+                }
 
-                canvas.drawBitmap(icon,
-                        dateXOffset,
-                        bounds.centerY() + (mYDividerOffset * 2),
-                        new Paint());
+                if (resourceId != 0) {
+                    // Weather icon and temperatures
+                    Bitmap icon = BitmapFactory.decodeResource(SunshineWatchFaceService.this.getResources(),
+                            DigitalWatchFaceUtil.getWeatherIconByWeatherCondition(resourceId));
 
-                canvas.drawText(maxTemp + " " + minTemp,
-                        dateXOffset + icon.getWidth() + 10,
-                        bounds.centerY() + (mYDividerOffset * 4),
-                        mDatePaint);
+                    // Icon
+                    canvas.drawBitmap(icon,
+                            bounds.centerX() - (mMaxTempPaint.measureText(maxTemp) / 2) - icon.getWidth() - 10,
+                            bounds.centerY() + (mYDividerOffset * 3),
+                            new Paint());
+
+                    // Max temp
+                    canvas.drawText(maxTemp,
+                            bounds.centerX() - (mMaxTempPaint.measureText(maxTemp) / 2),
+                            bounds.centerY() + (mYDividerOffset * 6),
+                            mMaxTempPaint);
+
+                    // Min temp
+                    canvas.drawText(minTemp,
+                            bounds.centerX() + (mMaxTempPaint.measureText(maxTemp) / 2) + 10,
+                            bounds.centerY() + (mYDividerOffset * 6),
+                            mMinTempPaint);
+                }
             }
         }
 

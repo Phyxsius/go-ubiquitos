@@ -81,54 +81,45 @@ public class WeatherWearService extends IntentService implements
 
     @Override
     public void onConnected(Bundle bundle) {
-        String message = null;
-        //Requires a new thread to avoid blocking the UI
-
         Log.d(TAG, "Sending message to Wear");
-        // Create a DataMap object and send it to the data layer
-        // Get today's data from the ContentProvider
-
 
         String location = Utility.getPreferredLocation(this);
         Uri weatherForLocationUri = WeatherContract.WeatherEntry.buildWeatherLocationWithStartDate(
                 location, System.currentTimeMillis());
         Cursor data = getContentResolver().query(weatherForLocationUri, FORECAST_COLUMNS, null,
                 null, WeatherContract.WeatherEntry.COLUMN_DATE + " ASC");
-        if (data == null) {
-            return;
-        }
-        if (!data.moveToFirst()) {
+
+        if (data == null) return;
+
+        if (! data.moveToFirst() ) {
             data.close();
             return;
         }
 
-        // Extract the weather data from the Cursor
         int weatherId = data.getInt(INDEX_WEATHER_ID);
         double maxTemp = data.getDouble(INDEX_MAX_TEMP);
         double minTemp = data.getDouble(INDEX_MIN_TEMP);
+
         String formattedMaxTemperature = Utility.formatTemperature(this, maxTemp);
         String formattedMinTemperature = Utility.formatTemperature(this, minTemp);
+
         data.close();
 
         DataMap dataMap = new DataMap();
 
-        dataMap.putString("maxTemp", formattedMaxTemperature);
-        dataMap.putString("minTemp", formattedMinTemperature);
         dataMap.putString("weatherId", "" + weatherId);
-        message=formattedMaxTemperature+";"+formattedMinTemperature+";"+weatherId;
+        dataMap.putString("minTemp", formattedMinTemperature);
+        dataMap.putString("maxTemp", formattedMaxTemperature);
 
-        //Requires a new thread to avoid blocking the UI
-        new SendMessageToDataLayerThread(PATH_WEATHER_INFO, message).start();
+        new SendMessage(PATH_WEATHER_INFO, dataMap).start();
     }
 
     @Override
     public void onConnectionSuspended(int i) {
-        Log.w("action","connection suspended message "+i);
     }
 
     @Override
     public void onConnectionFailed(ConnectionResult connectionResult) {
-        Log.w("action","connection suspended failed "+connectionResult.toString());
     }
 
     @Override
@@ -139,30 +130,33 @@ public class WeatherWearService extends IntentService implements
         super.onDestroy();
     }
 
-    class SendMessageToDataLayerThread extends Thread {
+    class SendMessage extends Thread {
         String path;
-        String message;
+        DataMap message;
 
-        // Constructor to send a message to the data layer
-        SendMessageToDataLayerThread(String p, String msg) {
-            path = p;
-            message = msg;
+        SendMessage(String path, DataMap message) {
+            this.path = path;
+            this.message = message;
         }
 
         public void run() {
             NodeApi.GetConnectedNodesResult nodes = Wearable.NodeApi.getConnectedNodes(mGoogleApiClient).await();
+
             if (nodes != null && nodes.getNodes() != null) {
                 for (Node node : nodes.getNodes()) {
-                    MessageApi.SendMessageResult result = Wearable.MessageApi.sendMessage(mGoogleApiClient, node.getId(), path, message.getBytes()).await();
+                    MessageApi.SendMessageResult result =
+                            Wearable.MessageApi.sendMessage(
+                                    mGoogleApiClient,
+                                    node.getId(),
+                                    path,
+                                    message.toByteArray()
+                            ).await();
                     if (result.getStatus().isSuccess()) {
-                        Log.v("myTag", "Message: {" + message + "} sent to: " + node.getDisplayName());
+                        Log.d(TAG, "SendUpdateMessage: " + message);
                     } else {
-                        // Log an error
-                        Log.v("myTag", "ERROR: failed to send Message");
+                        Log.d(TAG, "Task Fail: Sending message");
                     }
                 }
-            }else{
-                Log.v("myTag message", "ERROR: no nodes connected");
             }
         }
     }
