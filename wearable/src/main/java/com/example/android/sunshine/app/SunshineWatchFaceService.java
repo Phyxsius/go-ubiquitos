@@ -100,13 +100,8 @@ public class SunshineWatchFaceService extends CanvasWatchFaceService {
         /** How often {@link #mUpdateTimeHandler} ticks in milliseconds. */
         long mInteractiveUpdateRateMs = NORMAL_UPDATE_RATE_MS;
 
-		// TODO: Replace
         int resourceId;
         String minTemp, maxTemp;
-
-        protected int minTemperature = Integer.MAX_VALUE,
-                maxTemperature = Integer.MAX_VALUE;
-		// **********
 
         /** Handler to update the time periodically in interactive mode. */
         final Handler mUpdateTimeHandler = new Handler() {
@@ -147,7 +142,6 @@ public class SunshineWatchFaceService extends CanvasWatchFaceService {
             }
         };
 
-		// TODO: Replace
         BroadcastReceiver messageReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
@@ -550,12 +544,6 @@ public class SunshineWatchFaceService extends CanvasWatchFaceService {
                         bounds.centerX() + mXDividerOffset,
                         bounds.centerY() + mYDividerOffset,
                         mDatePaint);
-
-                if (resourceId == 0) {
-                    resourceId = 600;
-                    minTemp = "10*";
-                    maxTemp = "99*";
-                }
 
                 if (resourceId != 0) {
                     // Weather icon and temperatures
